@@ -154,20 +154,23 @@ def readBME280All(addr=DEVICE):
   elif humidity < 0:
     humidity = 0
 
-  return temperature/100.0,pressure/100.0,humidity
+  fahrenheit = (temperature/100.0 * 9) / 5 + 32
+  return fahrenheit, pressure / 100.0, humidity
 
-def main():
+def spin_and_log_data_points():
+  try:
+    while True:
+      data_points = list(readBME280All())
 
-  (chip_id, chip_version) = readBME280ID()
-  print "Chip ID     :", chip_id
-  print "Version     :", chip_version
+      #  2019-03-28 TODO: pretty printing
+      print ",".join([
+        str(round(data_point, 2))
+        for data_point in data_points
+      ])
 
-  temperature,pressure,humidity = readBME280All()
-
-  fahrenheit = (temperature * 9) / 5 + 32
-  print "Temperature : ", fahrenheit, "F"
-  print "Pressure : ", pressure, "hPa"
-  print "Humidity : ", humidity, "%"
+      time.sleep(5)
+  except KeyboardInterrupt:
+    print "Interrupted - Stopped logging"
 
 if __name__=="__main__":
-   main()
+   spin_and_log_data_points()
