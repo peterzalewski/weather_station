@@ -1,34 +1,8 @@
 #!/usr/bin/python
-#--------------------------------------
-#    ___  ___  _ ____
-#   / _ \/ _ \(_) __/__  __ __
-#  / , _/ ___/ /\ \/ _ \/ // /
-# /_/|_/_/  /_/___/ .__/\_, /
-#                /_/   /___/
-#
-#           bme280.py
-#  Read data from a digital pressure sensor.
-#
-#  Official datasheet available from :
-#  https://www.bosch-sensortec.com/bst/products/all_products/bme280
-#
-# Author : Matt Hawkins
-# Date   : 21/01/2018
-#
-# https://www.raspberrypi-spy.co.uk/
-#
-#--------------------------------------
 import smbus
 import time
-from ctypes import c_short
-from ctypes import c_byte
-from ctypes import c_ubyte
+from ctypes import c_short, c_byte, c_ubyte
 
-DEVICE = 0x77 # Default device I2C address
-
-
-bus = smbus.SMBus(1) # Rev 2 Pi, Pi 2 & Pi 3 uses bus 1
-                     # Rev 1 Pi uses bus 0
 
 def getShort(data, index):
   # return two bytes from data as a signed 16-bit value
@@ -50,13 +24,12 @@ def getUChar(data,index):
   result =  data[index] & 0xFF
   return result
 
-def readBME280ID(addr=DEVICE):
-  # Chip ID Register Address
-  REG_ID     = 0xD0
-  (chip_id, chip_version) = bus.read_i2c_block_data(addr, REG_ID, 2)
-  return (chip_id, chip_version)
-
-def readBME280All(addr=DEVICE):
+def readBME280All(bus, addr):
+  # Original code:
+  #
+  # Author : Matt Hawkins
+  # Date   : 21/01/2018
+  # https://www.raspberrypi-spy.co.uk/
   # Register Addresses
   REG_DATA = 0xF7
   REG_CONTROL = 0xF4
@@ -157,10 +130,27 @@ def readBME280All(addr=DEVICE):
   fahrenheit = (temperature/100.0 * 9) / 5 + 32
   return fahrenheit, pressure / 100.0, humidity
 
-def spin_and_log_data_points():
+def spin_and_log_data_points(device_address, interval_sec=5):
+  """
+  Print all current data points from the given BME280 sensor at a regular interval.
+
+  Args:
+    device_address (int): I2C address of the BME280 sensor to poll
+    interval_sec (int): Number of seconds to wait between polls. Defaults to 5.
+  """
+
+  try:
+    bus = smbus.SMBus(1)
+  except IOError as ex:
+    if ex.errno == 2:
+      print "Error: Most likely bus does not exist"
+    elif ex.errno == 13:
+      print "Error: Mosty likely insufficient permission to access I2C bus"
+    raise
+
   try:
     while True:
-      data_points = list(readBME280All())
+      data_points = list(readBME280All(bus, device_address))
 
       #  2019-03-28 TODO: pretty printing
       print ",".join([
@@ -168,9 +158,13 @@ def spin_and_log_data_points():
         for data_point in data_points
       ])
 
-      time.sleep(5)
+      time.sleep(interval_sec)
+  except IOError as ex:
+    if ex.errno == 121:
+      print "Error: Most likely wrong device address for BME280 sensor"
+    raise
   except KeyboardInterrupt:
     print "Interrupted - Stopped logging"
 
 if __name__=="__main__":
-   spin_and_log_data_points()
+   spin_and_log_data_points(0x77)
