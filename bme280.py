@@ -1,43 +1,41 @@
 #!/usr/bin/python
-import smbus
 import time
-from ctypes import c_short, c_byte, c_ubyte
+from ctypes import c_short
+
+import smbus
 
 
-def getShort(data, index):
-  # return two bytes from data as a signed 16-bit value
+def get_short(data, index):
+  """Return two bytes from data as a signed 16-bit value"""
   return c_short((data[index+1] << 8) + data[index]).value
 
-def getUShort(data, index):
-  # return two bytes from data as an unsigned 16-bit value
+def get_unsigned_short(data, index):
+  """Return two bytes from data as an unsigned 16-bit value"""
   return (data[index+1] << 8) + data[index]
 
-def getChar(data,index):
-  # return one byte from data as a signed char
+def get_char(data, index):
+  """Return one byte from data as a signed char"""
   result = data[index]
   if result > 127:
     result -= 256
   return result
 
-def getUChar(data,index):
-  # return one byte from data as an unsigned char
-  result =  data[index] & 0xFF
+def get_unsigned_char(data, index):
+  """Return one byte from data as an unsigned char"""
+  result = data[index] & 0xFF
   return result
 
-def readBME280All(bus, addr):
+def read_bme280_data_points(bus, addr):
   # Original code:
   #
   # Author : Matt Hawkins
   # Date   : 21/01/2018
   # https://www.raspberrypi-spy.co.uk/
+
   # Register Addresses
   REG_DATA = 0xF7
   REG_CONTROL = 0xF4
-  REG_CONFIG  = 0xF5
-
   REG_CONTROL_HUM = 0xF2
-  REG_HUM_MSB = 0xFD
-  REG_HUM_LSB = 0xFE
 
   # Oversample setting - page 27
   OVERSAMPLE_TEMP = 2
@@ -46,6 +44,7 @@ def readBME280All(bus, addr):
 
   # Oversample setting for humidity register - page 26
   OVERSAMPLE_HUM = 2
+
   bus.write_byte_data(addr, REG_CONTROL_HUM, OVERSAMPLE_HUM)
 
   control = OVERSAMPLE_TEMP<<5 | OVERSAMPLE_PRES<<2 | MODE
@@ -58,37 +57,37 @@ def readBME280All(bus, addr):
   cal3 = bus.read_i2c_block_data(addr, 0xE1, 7)
 
   # Convert byte data to word values
-  dig_T1 = getUShort(cal1, 0)
-  dig_T2 = getShort(cal1, 2)
-  dig_T3 = getShort(cal1, 4)
+  dig_t1 = get_unsigned_short(cal1, 0)
+  dig_t2 = get_short(cal1, 2)
+  dig_t3 = get_short(cal1, 4)
 
-  dig_P1 = getUShort(cal1, 6)
-  dig_P2 = getShort(cal1, 8)
-  dig_P3 = getShort(cal1, 10)
-  dig_P4 = getShort(cal1, 12)
-  dig_P5 = getShort(cal1, 14)
-  dig_P6 = getShort(cal1, 16)
-  dig_P7 = getShort(cal1, 18)
-  dig_P8 = getShort(cal1, 20)
-  dig_P9 = getShort(cal1, 22)
+  dig_p1 = get_unsigned_short(cal1, 6)
+  dig_p2 = get_short(cal1, 8)
+  dig_p3 = get_short(cal1, 10)
+  dig_p4 = get_short(cal1, 12)
+  dig_p5 = get_short(cal1, 14)
+  dig_p6 = get_short(cal1, 16)
+  dig_p7 = get_short(cal1, 18)
+  dig_p8 = get_short(cal1, 20)
+  dig_p9 = get_short(cal1, 22)
 
-  dig_H1 = getUChar(cal2, 0)
-  dig_H2 = getShort(cal3, 0)
-  dig_H3 = getUChar(cal3, 2)
+  dig_h1 = get_unsigned_char(cal2, 0)
+  dig_h2 = get_short(cal3, 0)
+  dig_h3 = get_unsigned_char(cal3, 2)
 
-  dig_H4 = getChar(cal3, 3)
-  dig_H4 = (dig_H4 << 24) >> 20
-  dig_H4 = dig_H4 | (getChar(cal3, 4) & 0x0F)
+  dig_h4 = get_char(cal3, 3)
+  dig_h4 = (dig_h4 << 24) >> 20
+  dig_h4 = dig_h4 | (get_char(cal3, 4) & 0x0F)
 
-  dig_H5 = getChar(cal3, 5)
-  dig_H5 = (dig_H5 << 24) >> 20
-  dig_H5 = dig_H5 | (getUChar(cal3, 4) >> 4 & 0x0F)
+  dig_h5 = get_char(cal3, 5)
+  dig_h5 = (dig_h5 << 24) >> 20
+  dig_h5 = dig_h5 | (get_unsigned_char(cal3, 4) >> 4 & 0x0F)
 
-  dig_H6 = getChar(cal3, 6)
+  dig_h6 = get_char(cal3, 6)
 
   # Wait in ms (Datasheet Appendix B: Measurement time and current calculation)
   wait_time = 1.25 + (2.3 * OVERSAMPLE_TEMP) + ((2.3 * OVERSAMPLE_PRES) + 0.575) + ((2.3 * OVERSAMPLE_HUM)+0.575)
-  time.sleep(wait_time/1000)  # Wait the required time  
+  time.sleep(wait_time/1000)  # Wait the required time
 
   # Read temperature/pressure/humidity
   data = bus.read_i2c_block_data(addr, REG_DATA, 8)
@@ -97,31 +96,32 @@ def readBME280All(bus, addr):
   hum_raw = (data[6] << 8) | data[7]
 
   #Refine temperature
-  var1 = ((((temp_raw>>3)-(dig_T1<<1)))*(dig_T2)) >> 11
-  var2 = (((((temp_raw>>4) - (dig_T1)) * ((temp_raw>>4) - (dig_T1))) >> 12) * (dig_T3)) >> 14
+  var1 = ((((temp_raw>>3)-(dig_t1<<1)))*(dig_t2)) >> 11
+  var2 = (((((temp_raw>>4) - (dig_t1)) * ((temp_raw>>4) - (dig_t1))) >> 12) * (dig_t3)) >> 14
   t_fine = var1+var2
-  temperature = float(((t_fine * 5) + 128) >> 8);
+  temperature = float(((t_fine * 5) + 128) >> 8)
 
   # Refine pressure and adjust for temperature
   var1 = t_fine / 2.0 - 64000.0
-  var2 = var1 * var1 * dig_P6 / 32768.0
-  var2 = var2 + var1 * dig_P5 * 2.0
-  var2 = var2 / 4.0 + dig_P4 * 65536.0
-  var1 = (dig_P3 * var1 * var1 / 524288.0 + dig_P2 * var1) / 524288.0
-  var1 = (1.0 + var1 / 32768.0) * dig_P1
+  var2 = var1 * var1 * dig_p6 / 32768.0
+  var2 = var2 + var1 * dig_p5 * 2.0
+  var2 = var2 / 4.0 + dig_p4 * 65536.0
+  var1 = (dig_p3 * var1 * var1 / 524288.0 + dig_p2 * var1) / 524288.0
+  var1 = (1.0 + var1 / 32768.0) * dig_p1
   if var1 == 0:
-    pressure=0
+    pressure = 0
   else:
     pressure = 1048576.0 - pres_raw
     pressure = ((pressure - var2 / 4096.0) * 6250.0) / var1
-    var1 = dig_P9 * pressure * pressure / 2147483648.0
-    var2 = pressure * dig_P8 / 32768.0
-    pressure = pressure + (var1 + var2 + dig_P7) / 16.0
+    var1 = dig_p9 * pressure * pressure / 2147483648.0
+    var2 = pressure * dig_p8 / 32768.0
+    pressure = pressure + (var1 + var2 + dig_p7) / 16.0
 
   # Refine humidity
   humidity = t_fine - 76800.0
-  humidity = (hum_raw - (dig_H4 * 64.0 + dig_H5 / 16384.0 * humidity)) * (dig_H2 / 65536.0 * (1.0 + dig_H6 / 67108864.0 * humidity * (1.0 + dig_H3 / 67108864.0 * humidity)))
-  humidity = humidity * (1.0 - dig_H1 * humidity / 524288.0)
+  humidity = (hum_raw - (dig_h4 * 64.0 + dig_h5 / 16384.0 * humidity)) * \
+    (dig_h2 / 65536.0 * (1.0 + dig_h6 / 67108864.0 * humidity * (1.0 + dig_h3 / 67108864.0 * humidity)))
+  humidity = humidity * (1.0 - dig_h1 * humidity / 524288.0)
   if humidity > 100:
     humidity = 100
   elif humidity < 0:
@@ -150,7 +150,7 @@ def spin_and_log_data_points(device_address, interval_sec=5):
 
   try:
     while True:
-      data_points = list(readBME280All(bus, device_address))
+      data_points = list(read_bme280_data_points(bus, device_address))
 
       #  2019-03-28 TODO: pretty printing
       print ",".join([
@@ -166,5 +166,5 @@ def spin_and_log_data_points(device_address, interval_sec=5):
   except KeyboardInterrupt:
     print "Interrupted - Stopped logging"
 
-if __name__=="__main__":
-   spin_and_log_data_points(0x77)
+if __name__ == "__main__":
+  spin_and_log_data_points(0x77)
