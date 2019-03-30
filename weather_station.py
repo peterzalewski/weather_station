@@ -1,4 +1,5 @@
 #!/usr/bin/python
+import argparse
 import time
 from ctypes import c_short
 
@@ -25,7 +26,7 @@ def get_unsigned_char(data, index):
   result = data[index] & 0xFF
   return result
 
-def read_bme280_data_points(bus, addr):
+def read_bme280_data_points(bus, addr, verbose=False):
   # Original code:
   #
   # Author : Matt Hawkins
@@ -55,6 +56,11 @@ def read_bme280_data_points(bus, addr):
   cal1 = bus.read_i2c_block_data(addr, 0x88, 24)
   cal2 = bus.read_i2c_block_data(addr, 0xA1, 1)
   cal3 = bus.read_i2c_block_data(addr, 0xE1, 7)
+
+  if verbose:
+    print "Temperature calibration data: {}".format(cal1)
+    print "Pressure calibration data: {}".format(cal2)
+    print "Humidity calibration data: {}".format(cal3)
 
   # Convert byte data to word values
   dig_t1 = get_unsigned_short(cal1, 0)
@@ -130,7 +136,7 @@ def read_bme280_data_points(bus, addr):
   fahrenheit = (temperature/100.0 * 9) / 5 + 32
   return fahrenheit, pressure / 100.0, humidity
 
-def spin_and_log_data_points(device_address, interval_sec=5):
+def spin_and_log_data_points(device_address, interval_sec=5, verbose=False):
   """
   Print all current data points from the given BME280 sensor at a regular interval.
 
@@ -150,7 +156,7 @@ def spin_and_log_data_points(device_address, interval_sec=5):
 
   try:
     while True:
-      data_points = list(read_bme280_data_points(bus, device_address))
+      data_points = list(read_bme280_data_points(bus, device_address, verbose))
 
       #  2019-03-28 TODO: pretty printing
       print ",".join([
@@ -167,4 +173,20 @@ def spin_and_log_data_points(device_address, interval_sec=5):
     print "Interrupted - Stopped logging"
 
 if __name__ == "__main__":
-  spin_and_log_data_points(0x77)
+  argument_parser = argparse.ArgumentParser()
+  argument_parser.add_argument(
+    "-d",
+    "--device_address",
+    type=int,
+    default=0x77,
+    help="the I2C address of the BME280 sensor to poll")
+  argument_parser.add_argument(
+    "-i",
+    "--interval_sec",
+    type=int,
+    default=5,
+    help="the number of seconds to wait between polls. Defaults to 5")
+  argument_parser.add_argument("-v", "--verbose", action="store_true")
+  arguments = argument_parser.parse_args()
+
+  spin_and_log_data_points(**dict(arguments._get_kwargs()))
