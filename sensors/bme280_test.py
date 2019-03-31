@@ -2,7 +2,7 @@ import unittest
 
 from mock import patch
 
-from weather_station import read_bme280_data_points
+from bme280 import get_temperature_pressure_humidity
 
 
 class TestReadBME280DataPoints(unittest.TestCase):
@@ -27,7 +27,7 @@ class TestReadBME280DataPoints(unittest.TestCase):
     # I find this more readable than directly assigning nested arrays to side_effect
     smbus.read_i2c_block_data.side_effect = list(read_data())
 
-    temperature, pressure, humidity = read_bme280_data_points(smbus, 1)
+    temperature, pressure, humidity = get_temperature_pressure_humidity(smbus, 1)
 
     self.assertEqual(round(temperature, 2), 77.32)
     self.assertEqual(round(pressure, 2), 1022.19)
